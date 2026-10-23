@@ -86,5 +86,9 @@
 | API-DB-02 | Повтор запроса с тем же ключом и теми же данными | Тот же `applicationId`, без дубликата | `applicationId` совпадает с первым ответом | PASS |
 | API-DB-03 | Повторное использование ключа с изменённым телефоном | HTTP 409 `IDEMPOTENCY_KEY_REUSED` | HTTP 409, код `IDEMPOTENCY_KEY_REUSED` | PASS |
 |API-DB-04  | Отправка заявки без Idempotency-Key |	HTTP 400 VALIDATION_ERROR, заявка не создаётся | HTTP 400, код VALIDATION_ERROR	|PASS |ID	Сценарий	Ожидаемый результат	Фактический результат	Статус
-|API-DB-05	| Создание заявки с телефоном неправильного формата	|HTTP 400 VALIDATION_ERROR, заявка не сохраняется	| HTTP 400; в PostgreSQL найдено 0 записей по ключу	|PASS |
+|API-DB-05	| Создание заявки с телефоном неправильного формата	|HTTP 400 VALIDATION_ERROR, заявка не сохраняется	| HTTP 400; в PostgreSQL найдено 0 записей по ключу	| PASS |
+|API-DB-06	| Создание заявки с ИНН неправильного формата	| HTTP 400 VALIDATION_ERROR, заявка не сохраняется	|HTTP 400; в PostgreSQL найдено 0 записей по ключу	| PASS |
+|API-DB-07	| Создание заявки с недопустимым source	| HTTP 400 VALIDATION_ERROR, заявка не сохраняется	| HTTP 400; в PostgreSQL найдено 0 записей по ключу	| PASS |
+|API-DB-08	| Создание заявки без обязательного поля phone |HTTP 400 VALIDATION_ERROR, заявка не сохраняется	|HTTP 400; в PostgreSQL найдено 0 записей по ключу	| PASS |
+|API-DB-09	|Создание заявки без обязательного поля fullName	| HTTP 400 VALIDATION_ERROR, заявка не сохраняется	| HTTP 400; в PostgreSQL найдено 0 записей по ключу	| PASS |
 **Примечание:** проверки выполнены через Swagger UI. Проверка сохранения заявки после перезапуска API и наличие записи в PostgreSQL описаны в разделе проверки БД.
