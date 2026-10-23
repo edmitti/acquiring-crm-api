@@ -386,7 +386,89 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 code: SERVICE_UNAVAILABLE
-                message: Сервис временно недоступен
+                message: Сервис временно недоступен   
+  /health:
+    get:
+      summary: Проверить доступность API и PostgreSQL
+      operationId: healthCheck
+      responses:
+        '200':
+          description: API и база данных доступны
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  database:
+                    type: string
+                    example: connected
+        '503':
+          description: База данных недоступна
+
+  /attachments/{attachment_id}:
+    get:
+      summary: Получить метаданные вложения
+      operationId: getAttachment
+      parameters:
+        - name: attachment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Метаданные вложения получены
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attachmentId:
+                    type: string
+                    format: uuid
+                  fileName:
+                    type: string
+                  contentType:
+                    type: string
+                    nullable: true
+                  size:
+                    type: integer
+                    format: int64
+                  createdAt:
+                    type: string
+                    format: date-time
+        '404':
+          description: Вложение не найдено
+        '500':
+          description: Не удалось получить метаданные
+
+  /attachments/{attachment_id}/download:
+    get:
+      summary: Скачать вложение
+      operationId: downloadAttachment
+      parameters:
+        - name: attachment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Файл возвращён
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Вложение или файл не найдены
+        '500':
+          description: Не удалось получить метаданные
 components:
   schemas:
     ErrorResponse:
