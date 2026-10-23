@@ -92,3 +92,13 @@
 |API-DB-08	| Создание заявки без обязательного поля phone |HTTP 400 VALIDATION_ERROR, заявка не сохраняется	|HTTP 400; в PostgreSQL найдено 0 записей по ключу	| PASS |
 |API-DB-09	|Создание заявки без обязательного поля fullName	| HTTP 400 VALIDATION_ERROR, заявка не сохраняется	| HTTP 400; в PostgreSQL найдено 0 записей по ключу	| PASS |
 **Примечание:** проверки выполнены через Swagger UI. Проверка сохранения заявки после перезапуска API и наличие записи в PostgreSQL описаны в разделе проверки БД.
+
+### Повторная проверка POST /attachments
+
+Дата: 24.10.2026
+
+| № | Сценарий | Ожидаемый результат | Фактический результат | Статус |
+| ATT-05 | Загрузка PNG допустимого размера | 201 Created | 201 Created | PASS |
+| ATT-06 | Загрузка TXT | 415, `UNSUPPORTED_FILE_TYPE` | 415, `UNSUPPORTED_FILE_TYPE` | PASS |
+| ATT-07 | Загрузка пустого файла | 400, `EMPTY_FILE` | 400 Bad Request | PASS |
+| ATT-08 | Загрузка файла размером 11 МБ | 413, `FILE_TOO_LARGE` | 413 Content Too Large | PASS |
