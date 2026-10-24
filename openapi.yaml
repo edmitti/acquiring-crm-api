@@ -1,3 +1,4 @@
+
 openapi: 3.0.3
 
 info:
@@ -46,6 +47,14 @@ paths:
                     example: connected
         '503':
           description: База данных недоступна
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail:
+                  code: DATABASE_UNAVAILABLE
+                  message: База данных временно недоступна
 
   /applications:
     post:
@@ -59,101 +68,35 @@ paths:
           required: true
           description: |
             Ключ идемпотентности. Повтор запроса с тем же ключом
-            и теми же данными не создаёт вторую заявку.
+            и теми же данными возвращает существующую заявку.
             Повторное использование ключа с другими данными
-            приводит к конфликту IDEMPOTENCY_KEY_REUSED.
+            приводит к ошибке IDEMPOTENCY_KEY_REUSED.
           schema:
             type: string
             minLength: 1
-            maxLength: 255
           example: restart-test-001
-
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - fullName
-                - phone
-                - inn
-                - source
-              properties:
-                fullName:
-                  type: string
-                  example: Иванов Иван Иванович
-                phone:
-                  type: string
-                  pattern: '^\+7[0-9]{10}$'
-                  example: "+79991234567"
-                inn:
-                  type: string
-                  pattern: '^[0-9]{10}([0-9]{2})?$'
-                  example: "1234567890"
-                source:
-                  type: string
-                  enum:
-                    - SITE
-                    - APP
-                  example: SITE
-                businessType:
-                  type: string
-                  example: торговля
-                monthlyTurnover:
-                  type: number
-                  format: double
-                  example: 400000
-                averageCheck:
-                  type: number
-                  format: double
-                  example: 500
-                city:
-                  type: string
-                  example: Красноярск
-
+              $ref: '#/components/schemas/ApplicationIn'
       responses:
         '201':
-          description: Заявка успешно создана
+          description: Заявка создана или возвращена существующая заявка
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - applicationId
-                  - status
-                  - innVerificationStatus
-                  - clientExists
-                  - clientId
-                properties:
-                  applicationId:
-                    type: string
-                    format: uuid
-                    example: "550e8400-e29b-41d4-a716-446655440000"
-                  status:
-                    type: string
-                    example: NEW
-                  innVerificationStatus:
-                    type: string
-                    example: PENDING
-                  clientExists:
-                    type: boolean
-                    example: false
-                  clientId:
-                    type: string
-                    nullable: true
-                    example: null
-
+                $ref: '#/components/schemas/ApplicationResponse'
         '400':
-          description: Ошибка валидации входных данных
+          description: Ошибка валидации входных данных или отсутствует заголовок
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 code: VALIDATION_ERROR
-                message: Проверьте переданные данные
-
+                message: Проверьте входные данные
         '409':
           description: Ключ идемпотентности использован с другими данными
           content:
@@ -161,26 +104,346 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
-                code: IDEMPOTENCY_KEY_REUSED
-                message: Ключ уже использован для другого запроса
-
+                detail:
+                  code: IDEMPOTENCY_KEY_REUSED
+                  message: Ключ Idempotency-Key использован с другими данными
         '500':
-          description: Внутренняя ошибка сервера
+          description: Внутренняя ошибка сервера, например ошибка подключения к БД
+        '503':
+          description: Не удалось разрешить конфликт записи в БД
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail:
+                  code: DATABASE_CONFLICT
+                  message: Повторите запрос позже
+
+  /attachments:
+    post:
+      tags:
+        - Attachments
+      summary: Загрузить вложение
+      operationId: uploadAttachment
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: |
+                    Файл PDF, PNG или JPEG размером не более 10 MiB.
+      responses:
+        '201':
+          description: Файл и его метаданные успешно сохранены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttachmentUploadResponse'
+        '400':
+          description: Пустой файл, отсутствует файл или неверная сигнатура
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                emptyFile:
+                  value:
+                    detail:
+                      code: EMPTY_FILE
+                      message: Файл пуст
+                invalidContent:
+                  value:
+                    detail:
+                      code: INVALID_FILE_CONTENT
+                      message: Содержимое файла не соответствует его расширению
+                fileRequired:
+                  value:
+                    detail:
+                      code: FILE_REQUIRED
+                      message: Файл обязателен
+        '413':
+          description: Превышен максимальный размер файла
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail:
+                  code: FILE_TOO_LARGE
+                  message: Максимальный размер файла — 10 МиБ
+        '415':
+          description: Неподдерживаемый формат файла
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail:
+                  code: UNSUPPORTED_FILE_TYPE
+                  message: Разрешены только PDF, PNG и JPEG
+        '500':
+          description: Ошибка сохранения файла или его метаданных
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                fileSaveError:
+                  value:
+                    detail:
+                      code: FILE_SAVE_ERROR
+                      message: Не удалось сохранить файл
+                metadataSaveError:
+                  value:
+                    detail:
+                      code: ATTACHMENT_METADATA_SAVE_ERROR
+                      message: Не удалось сохранить данные вложения
+
+  /attachments/{attachment_id}:
+    get:
+      tags:
+        - Attachments
+      summary: Получить метаданные вложения
+      operationId: getAttachment
+      parameters:
+        - $ref: '#/components/parameters/AttachmentId'
+      responses:
+        '200':
+          description: Метаданные вложения найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttachmentMetadata'
+        '404':
+          description: Вложение не найдено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail:
+                  code: ATTACHMENT_NOT_FOUND
+                  message: Вложение не найдено
+        '500':
+          description: Ошибка чтения метаданных
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail:
+                  code: ATTACHMENT_METADATA_READ_ERROR
+                  message: Не удалось получить данные вложения
+
+  /attachments/{attachment_id}/download:
+    get:
+      tags:
+        - Attachments
+      summary: Скачать вложение
+      operationId: downloadAttachment
+      parameters:
+        - $ref: '#/components/parameters/AttachmentId'
+      responses:
+        '200':
+          description: Файл успешно возвращён как бинарное вложение
+          headers:
+            Content-Disposition:
+              description: Имя скачиваемого файла
+              schema:
+                type: string
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Вложение или файл на диске не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                attachmentNotFound:
+                  value:
+                    detail:
+                      code: ATTACHMENT_NOT_FOUND
+                      message: Вложение не найдено
+                fileNotFound:
+                  value:
+                    detail:
+                      code: ATTACHMENT_FILE_NOT_FOUND
+                      message: Файл вложения не найден на диске
+        '500':
+          description: Ошибка чтения метаданных
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail:
+                  code: ATTACHMENT_METADATA_READ_ERROR
+                  message: Не удалось получить данные вложения
+
 components:
+  parameters:
+    AttachmentId:
+      name: attachment_id
+      in: path
+      required: true
+      description: UUID вложения
+      schema:
+        type: string
+        format: uuid
+      example: 550e8400-e29b-41d4-a716-446655440000
+
   schemas:
-    ErrorResponse:
+    ApplicationIn:
       type: object
       required:
-        - code
-        - message
+        - fullName
+        - phone
+        - inn
+        - source
       properties:
+        fullName:
+          type: string
+          minLength: 3
+          example: Иванов Иван Иванович
+        phone:
+          type: string
+          pattern: '^\+7[0-9]{10}$'
+          example: "+79991234567"
+        inn:
+          type: string
+          pattern: '^[0-9]{10}([0-9]{2})?$'
+          example: "1234567890"
+        source:
+          type: string
+          enum:
+            - SITE
+            - APP
+          example: SITE
+        businessType:
+          type: string
+          nullable: true
+          example: торговля
+        monthlyTurnover:
+          type: number
+          format: double
+          nullable: true
+          example: 400000
+        averageCheck:
+          type: number
+          format: double
+          nullable: true
+          example: 500
+        city:
+          type: string
+          nullable: true
+          example: Красноярск
+
+    ApplicationResponse:
+      type: object
+      required:
+        - applicationId
+        - status
+        - innVerificationStatus
+        - clientExists
+        - clientId
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        status:
+          type: string
+          example: NEW
+        innVerificationStatus:
+          type: string
+          example: PENDING
+        clientExists:
+          type: boolean
+          example: false
+        clientId:
+          type: string
+          format: uuid
+          nullable: true
+          example: null
+
+    AttachmentUploadResponse:
+      type: object
+      required:
+        - attachmentId
+        - fileName
+        - size
+      properties:
+        attachmentId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        fileName:
+          type: string
+          example: document.pdf
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 2048
+
+    AttachmentMetadata:
+      type: object
+      required:
+        - attachmentId
+        - fileName
+        - contentType
+        - size
+        - createdAt
+      properties:
+        attachmentId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        fileName:
+          type: string
+          example: document.pdf
+        contentType:
+          type: string
+          nullable: true
+          example: application/pdf
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 2048
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-24T12:00:00+00:00"
+
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: object
+          properties:
+            code:
+              type: string
+              example: ATTACHMENT_NOT_FOUND
+            message:
+              type: string
+              example: Вложение не найдено
         code:
           type: string
           example: VALIDATION_ERROR
         message:
           type: string
-          example: Проверьте переданные данные
+          example: Проверьте входные данные
+
