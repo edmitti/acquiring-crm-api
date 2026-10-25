@@ -66,13 +66,15 @@ paths:
           in: header
           required: true
           description: |
-            Ключ идемпотентности. Повтор запроса с тем же ключом
-            и теми же данными возвращает существующую заявку.
+            Ключ идемпотентности длиной от 1 до 255 символов.
+            Повтор запроса с тем же ключом и теми же данными
+            возвращает существующую заявку с HTTP 201.
             Повторное использование ключа с другими данными
-            приводит к ошибке IDEMPOTENCY_KEY_REUSED.
+            приводит к HTTP 409 и ошибке IDEMPOTENCY_KEY_REUSED.
           schema:
             type: string
             minLength: 1
+            maxLength: 255
           example: restart-test-001
       requestBody:
         required: true
@@ -109,7 +111,7 @@ paths:
                   code: IDEMPOTENCY_KEY_REUSED
                   message: Ключ Idempotency-Key использован с другими данными
         '500':
-          description: Внутренняя ошибка сервера
+          description: Необработанная внутренняя ошибка сервера
         '503':
           description: Не удалось разрешить конфликт записи в базе данных
           content:
@@ -140,8 +142,9 @@ paths:
                   type: string
                   format: binary
                   description: |
-                    Файл PDF, PNG, JPG или JPEG размером не более 10 МиБ
-                    (10 485 760 байт). Содержимое проверяется по сигнатуре.
+                    Файл PDF, PNG, JPG или JPEG размером не более
+                    10 MiB (10 485 760 байт). Проверяются расширение,
+                    размер и сигнатура содержимого.
       responses:
         '201':
           description: Файл и его метаданные успешно сохранены
@@ -152,7 +155,7 @@ paths:
         '400':
           description: |
             Ошибка валидации запроса, пустой файл или содержимое
-            не соответствует поддерживаемому формату.
+            не соответствует ожидаемой сигнатуре.
           content:
             application/json:
               schema:
@@ -161,7 +164,7 @@ paths:
                   - $ref: '#/components/schemas/HttpExceptionResponse'
               examples:
                 validationError:
-                  summary: Отсутствует обязательное поле file
+                  summary: Ошибка валидации запроса
                   value:
                     code: VALIDATION_ERROR
                     message: Проверьте входные данные
@@ -172,7 +175,7 @@ paths:
                       code: EMPTY_FILE
                       message: Файл пуст
                 invalidContent:
-                  summary: Сигнатура не соответствует расширению
+                  summary: Некорректная сигнатура файла
                   value:
                     detail:
                       code: INVALID_FILE_CONTENT
@@ -188,7 +191,7 @@ paths:
                   code: FILE_TOO_LARGE
                   message: Максимальный размер файла — 10 МиБ
         '415':
-          description: Неподдерживаемый формат файла
+          description: Неподдерживаемое расширение файла
           content:
             application/json:
               schema:
@@ -264,7 +267,7 @@ paths:
           description: Файл успешно возвращён как бинарное вложение
           headers:
             Content-Disposition:
-              description: Имя скачиваемого файла
+              description: Заголовок с именем скачиваемого файла
               schema:
                 type: string
           content:
@@ -382,6 +385,7 @@ components:
           example: false
         clientId:
           type: string
+          format: uuid
           nullable: true
           example: null
 
