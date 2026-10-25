@@ -66,7 +66,9 @@ paths:
           in: header
           required: true
           description: |
-            Ключ идемпотентности длиной от 1 до 255 символов.
+            Ключ идемпотентности. Минимальная длина — 1 символ.
+            В БД ключ хранится в поле VARCHAR(255), поэтому длина
+            не должна превышать 255 символов.
             Повтор запроса с тем же ключом и теми же данными
             возвращает существующую заявку с HTTP 201.
             Повторное использование ключа с другими данными
@@ -74,7 +76,6 @@ paths:
           schema:
             type: string
             minLength: 1
-            maxLength: 255
           example: restart-test-001
       requestBody:
         required: true
@@ -154,8 +155,8 @@ paths:
                 $ref: '#/components/schemas/AttachmentUploadResponse'
         '400':
           description: |
-            Ошибка валидации запроса, пустой файл или содержимое
-            не соответствует ожидаемой сигнатуре.
+            Ошибка валидации запроса, пустое имя файла, пустой файл
+            или содержимое не соответствует ожидаемой сигнатуре.
           content:
             application/json:
               schema:
@@ -164,18 +165,24 @@ paths:
                   - $ref: '#/components/schemas/HttpExceptionResponse'
               examples:
                 validationError:
-                  summary: Ошибка валидации запроса
+                  summary: Отсутствует обязательное поле file
                   value:
                     code: VALIDATION_ERROR
                     message: Проверьте входные данные
+                fileRequired:
+                  summary: Имя файла пустое
+                  value:
+                    detail:
+                      code: FILE_REQUIRED
+                      message: Файл обязателен
                 emptyFile:
-                  summary: Пустой файл
+                  summary: Файл пуст
                   value:
                     detail:
                       code: EMPTY_FILE
                       message: Файл пуст
                 invalidContent:
-                  summary: Некорректная сигнатура файла
+                  summary: Сигнатура не соответствует расширению
                   value:
                     detail:
                       code: INVALID_FILE_CONTENT
@@ -233,6 +240,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AttachmentMetadata'
+        '400':
+          description: Некорректный UUID вложения
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                code: VALIDATION_ERROR
+                message: Проверьте входные данные
         '404':
           description: Вложение не найдено
           content:
@@ -274,7 +290,17 @@ paths:
             application/octet-stream:
               schema:
                 type: string
-                format: binary
+                format: binary       
+        '400':
+          description: Некорректный UUID вложения
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                code: VALIDATION_ERROR
+                message: Проверьте входные данные
+                        
         '404':
           description: Вложение или физический файл не найден
           content:
