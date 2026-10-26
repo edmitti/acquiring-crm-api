@@ -101,12 +101,19 @@ def health_check():
 @app.post("/applications", status_code=201)
 def create_application(
     body: ApplicationIn,
-  idempotency_key: str = Header(
-    ...,
-    alias="Idempotency-Key",
-    min_length=1,
-    max_length=255,
-),
+    idempotency_key: str = Header(
+        ...,
+        alias="Idempotency-Key",
+        min_length=1,
+        max_length=255,
+    ),
+    idempotency_key: str = Header(
+        ...,
+        alias="Idempotency-Key",
+        min_length=1,
+        max_length=255,
+    ),
+>>>>>>> 4c0c946 (Align idempotency key validation)
 ):
     request_data = body.model_dump()
 
